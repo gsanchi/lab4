@@ -25,7 +25,10 @@ end top_basys3;
 architecture top_basys3_arch of top_basys3 is
 
     -- signal declarations
-    
+    signal w_floor : std_logic_vector(3 downto 0);
+    signal w_clk : std_logic;
+    signal w_fsm_reset : std_logic;
+    signal w_clk_reset : std_logic;
   
 	-- component declarations
     component sevenseg_decoder is
@@ -58,8 +61,8 @@ architecture top_basys3_arch of top_basys3 is
 	   );
     end component TDM4;
      
-	component clock_divider is
-        generic ( constant k_DIV : natural := 2	); -- How many clk cycles until slow clock toggles
+	component clock_divider is  --have to change this time
+        generic ( constant k_DIV : natural := 2000000	); -- How many clk cycles until slow clock toggles
                                                    -- Effectively, you divide the clk double this 
                                                    -- number (e.g., k_DIV := 2 --> clock divider of 4)
         port ( 	i_clk    : in std_logic;
@@ -70,14 +73,43 @@ architecture top_basys3_arch of top_basys3 is
 	
 begin
 	-- PORT MAPS ----------------------------------------
-    	
+    decoder : sevenseg_decoder port map(
+        i_Hex => w_floor,
+        o_seg_n => seg
+    );
+    
+    controller : elevator_controller_fsm port map(   
+        i_reset => w_fsm_reset,
+        go_up_down => sw(1),
+        is_stopped => sw(0),
+        i_clk => w_clk,
+        o_floor => w_floor
+    );
+    
+    --add clock divider
+	divider : clock_divider port map(
+	    i_clk => clk,
+	    i_reset => w_clk_reset,
+	    o_clk => w_clk
+	);
 	
 	-- CONCURRENT STATEMENTS ----------------------------
 	
 	-- LED 15 gets the FSM slow clock signal. The rest are grounded.
+	led(15) <= w_clk;
+	led(14 downto 0) <= (others => '0');
+	
+	--Disable the rest of the displays
+	an(0) <= '0';
+	an(1) <= '1';
+	an(2) <= '1';
+	an(3) <= '1';
+	
 	
 	-- leave unused switches UNCONNECTED. Ignore any warnings this causes.
 	
 	-- reset signals
+	w_fsm_reset <= btnR or btnU;
+	w_clk_reset <= btnL or btnU;
 	
 end top_basys3_arch;
